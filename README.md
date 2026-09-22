@@ -115,7 +115,7 @@ Shows the 2021 ESA WorldCover classes within the study area.
 
 Shows the final relative groundwater potential index generated from the weighted overlay model.
 
-The maps are available in [`OUTPUTS/MAPS`](OUTPUTS/MAPS).
+The maps are available in [`MAPS`](MAPS).
 
 ## Results
 
@@ -130,7 +130,7 @@ The model integrates:
 
 The resulting map provides a spatial representation of relative groundwater potential that can be used to identify areas for further investigation and groundwater exploration planning.
 
-The final raster is available in [`OUTPUTS/RASTERS`](OUTPUTS/RASTERS).
+The final raster is available in [`RASTERS`](RASTERS).
 
 ## Processing Notes
 
