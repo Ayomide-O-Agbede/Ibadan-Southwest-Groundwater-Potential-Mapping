@@ -1,166 +1,88 @@
 # Processing Notes
 
-## Purpose
-
-This document records important processing decisions, failed approaches, corrections and methodological changes made during the groundwater potential assessment of Ibadan Southwest LGA.
-
-Documenting these steps provides transparency and preserves the actual development of the workflow.
+This document records the main processing decisions, corrections and approaches that were changed during the project.
 
 ## 1. Coordinate Reference System
 
-The main analysis was standardized to:
+The analysis was standardised to **WGS 84 / UTM Zone 31N (EPSG:32631)**.
 
-**WGS 84 / UTM Zone 31N (EPSG:32631)**
+The projected CRS was necessary because slope, distance and other spatial calculations were being carried out in metres.
 
-A projected CRS was used because several processing steps involved distances and terrain calculations that are more appropriate in a coordinate system measured in metres.
+## 2. Slope Correction
 
-## 2. Slope Calculation Correction
+The first slope output was generated before the DEM was properly standardised to the projected CRS.
 
-The first slope calculation was identified as unsuitable because the DEM was being processed in a geographic coordinate system.
-
-The DEM was subsequently reprojected to EPSG:32631 and the slope was recalculated.
-
-The corrected slope raster produced values ranging from approximately 0° to 16.22°.
-
-**Lesson:** Terrain derivatives should be generated using an appropriate projected CRS when accurate distance-based calculations are required.
+This was corrected by reprojecting the DEM to EPSG:32631 and deriving slope again. The corrected slope range was approximately **0–16.22°**.
 
 ## 3. DEM Sink Filling
 
-A filled DEM was generated using the QGIS Fill Sinks (Wang & Liu) algorithm.
+A filled DEM was generated using the **Wang & Liu** sink-filling method in QGIS.
 
-The filled DEM was used for subsequent hydrological processing, particularly flow accumulation and stream-network extraction.
+This was done before the flow-accumulation and drainage analysis to improve the hydrological processing.
 
-## 4. Initial Flow Accumulation
+## 4. Flow Accumulation
 
-The first flow-accumulation output contained negative values.
+The first flow-accumulation output contained negative values, so it was not used.
 
-Because negative accumulation values were unsuitable for the intended stream-extraction workflow, this output was rejected.
+The flow accumulation was regenerated using **GRASS GIS `r.watershed`**, and the corrected positive output was used for drainage extraction.
 
-A new flow-accumulation raster was generated using the GRASS `r.watershed` tool with the positive flow-accumulation option.
+A threshold of **1000** was selected for the drainage network.
 
-The corrected output was subsequently used for stream-network extraction.
+## 5. Drainage Network and Distance
 
-## 5. Stream Network Extraction
+Different attempts were made to thin or vectorise the extracted drainage network, but the results were not satisfactory for the distance analysis.
 
-A drainage/stream network was extracted from the positive flow-accumulation raster using a threshold of 1000.
+The raster drainage network was therefore retained and used to calculate distance with **GDAL Proximity**.
 
-The resulting binary stream network showed a continuous branching drainage pattern across the study area.
+## 6. Distance-to-Drainage Correction
 
-Attempts were made to thin and vectorize the stream network. These attempts did not produce a satisfactory result and were therefore not used in the final workflow.
+The first distance suitability classification was affected by values outside the actual study area.
 
-The raster stream network was retained for calculating distance to drainage.
+The distance raster was therefore clipped to the LGA boundary before calculating the final suitability classes.
 
-## 6. Distance to Drainage Correction
+The corrected maximum distance was approximately **1623.62 m**, and the revised suitability classes were used in the final GWPI.
 
-Distance to drainage was initially calculated from the stream network.
+## 7. CHIRPS Processing
 
-The first suitability classification was based on the full raster extent rather than only the study-area extent. This caused the classification range to be strongly influenced by values outside the study boundary and resulted in poor visual separation within the study area.
+CHIRPS annual rainfall data from **2001–2025** were initially investigated as an additional groundwater-related factor.
 
-The actual distance raster was therefore clipped to the study boundary.
+Reprojecting individual rainfall rasters to EPSG:32631 using bilinear resampling produced NoData edge effects around the original **-9997** values. Several cleaning attempts did not give a satisfactory result.
 
-The clipped raster had a maximum distance of approximately 1623.62 m within the study area.
+The rainfall data were instead processed in their original CRS while handling the NoData values, and the resulting mean annual rainfall surface was then reprojected.
 
-The suitability classification was recalculated using the range of the clipped raster.
-
-This corrected distance-to-drainage suitability raster was used in the final groundwater potential index.
-
-## 7. CHIRPS Rainfall Processing
-
-CHIRPS annual rainfall data for 2001–2025 were investigated as a possible groundwater-related factor.
-
-An initial attempt was made to reproject individual annual CHIRPS rasters to EPSG:32631 using bilinear resampling.
-
-This produced NoData-related edge artefacts, including values close to -9997, making the resulting rasters unsuitable for reliable analysis.
-
-Several cleaning and NoData-handling attempts were tested but did not provide a satisfactory workflow.
-
-A more reliable approach was then adopted:
-
-i. The original annual CHIRPS rasters were retained in their original geographic coordinate system.
-ii. A mean annual rainfall raster for 2001–2025 was calculated using the original rasters.
-iii. NoData values were ignored during the calculation.
-iv. The resulting mean rainfall raster was then reprojected to EPSG:32631.
-
-Although this produced a valid long-term mean rainfall surface, CHIRPS has a relatively coarse spatial resolution compared with the ~30 m terrain analysis used for the study.
-
-Rainfall was therefore excluded from the final weighted overlay rather than introducing a coarse-resolution factor into a detailed local assessment.
+The rainfall surface was usable, but its approximately **0.05° resolution** was considered too coarse for the final analysis. It was therefore excluded from the weighted overlay.
 
 ## 8. LULC Processing
 
-ESA WorldCover 2021 v2.0 was selected as the land-use/land-cover dataset.
+ESA WorldCover 2021 v2.0 was used for the LULC factor.
 
-The original 10 m WorldCover raster was reprojected to EPSG:32631 using nearest-neighbour resampling and clipped to the study boundary.
+The 10 m raster was reprojected using nearest-neighbour resampling, clipped to the study area and reclassified to a 1–5 suitability scale.
 
-The resulting land-cover classes were reclassified into groundwater suitability scores from 1 to 5.
+It was then resampled to approximately the 30 m analysis grid using nearest neighbour.
 
-Because the other major analytical factors were based on approximately 30 m terrain data, the LULC suitability raster was resampled to match the approximately 30 m analysis grid using nearest-neighbour resampling.
+## 9. Final GWPI
 
-## 9. Suitability Reclassification
+An initial GWPI was produced before the distance-to-drainage correction.
 
-The selected factors were standardized to a common suitability scale:
-
-**1 = Very Low**
-
-**2 = Low**
-
-**3 = Moderate**
-
-**4 = High**
-
-**5 = Very High**
-
-The following factors were standardized:
-
-- Slope
-- Distance to drainage
-- LULC
-- Elevation
-
-This allowed the factors to be combined using a weighted overlay.
-
-## 10. Initial Groundwater Potential Index
-
-An initial groundwater potential index was calculated using:
-
-- Slope — 30%
-- Distance to drainage — 30%
-- LULC — 25%
-- Elevation — 15%
-
-The initial GWPI was later superseded after the distance-to-drainage raster was corrected by clipping it to the study boundary and recalculating its suitability classification.
-
-## 11. Final Groundwater Potential Index
-
-The corrected groundwater potential index was calculated using the corrected distance-to-drainage suitability layer.
-
-The final model was:
-
-`GWPI = (Slope × 0.30) + (Distance to Drainage × 0.30) + (LULC × 0.25) + (Elevation × 0.15)`
+After correcting the distance raster and its suitability classes, the GWPI was recalculated.
 
 The final raster is:
 
-`Ibadan_Southwest_Groundwater_Potential_Index_v2`
+`Ibadan_Southwest_Groundwater_Potential_Index_v2.tif`
 
-The final GWPI has values ranging approximately from 1.30 to 5.00.
+The final GWPI range was approximately **1.30–5.00**.
 
-## 12. Interpretation
+## 10. Interpretation
 
-The final map represents **relative groundwater potential** based on the selected GIS factors.
+The final result represents **relative groundwater potential**, not measured groundwater yield.
 
-It should not be interpreted as a direct prediction of groundwater yield.
+The weights were expert-informed and the model was not validated against spatial borehole-yield data. The result is therefore intended for **initial groundwater exploration and spatial planning**.
 
-The weighting scheme was expert-informed for this portfolio assessment and was not statistically calibrated because spatial borehole validation data were not available.
+## 11. Main Lessons
 
-The result is therefore intended primarily for groundwater exploration planning and spatial prioritization.
-
-## 13. Key Processing Lessons
-
-Several practical lessons emerged during the project:
-
-- Use an appropriate projected CRS before calculating terrain and distance-based derivatives.
-- Inspect raster statistics instead of relying only on visual appearance.
-- Check the spatial extent of derived rasters before classification.
-- Handle NoData values carefully when working with satellite and rainfall datasets.
-- Match raster grids before performing weighted overlay calculations.
-- Preserve failed processing attempts during project development so that methodological decisions can be traced.
-- Distinguish between a relative GIS-based potential index and validated groundwater productivity.
+* Use a projected CRS for distance and terrain analysis where calculations are required in metres.
+* Check raster statistics before using derived outputs.
+* Check the analysis extent and NoData areas before classification.
+* Keep the raster grids consistent when combining factors.
+* Record failed processing steps and corrections.
+* Distinguish a relative groundwater potential index from a validated groundwater productivity assessment.
