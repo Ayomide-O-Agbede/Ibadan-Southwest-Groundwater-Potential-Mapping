@@ -1,172 +1,134 @@
 # Methodology
 
-## 1. Project Overview
+## 1. Study Area and CRS
 
-This project presents a GIS-based groundwater potential assessment of Ibadan Southwest Local Government Area, Oyo State, Nigeria. The objective was to integrate selected terrain, drainage, land-use/land-cover and elevation factors in a weighted overlay to produce a relative groundwater potential index.
+The assessment was carried out in **Ibadan Southwest Local Government Area, Oyo State, Nigeria**.
 
-The assessment is intended to support groundwater exploration planning. It represents relative groundwater potential based on the selected spatial factors and does not represent measured borehole yield or groundwater productivity.
+The main analysis used **WGS 84 / UTM Zone 31N (EPSG:32631)**. The projected CRS was used for terrain and distance calculations in metres.
 
-## 2. Study Area
+## 2. DEM Processing
 
-The study area is Ibadan Southwest Local Government Area in Oyo State, southwestern Nigeria.
+The SRTM DEM was reprojected to EPSG:32631 and clipped to the study area.
 
-The study-area boundary was used to clip and standardize the spatial datasets used in the analysis.
+A filled DEM was then generated using the **QGIS Fill Sinks (Wang & Liu)** tool. The filled DEM was used for hydrological processing, while the original projected DEM was used for the elevation and slope analysis.
 
-All major analysis layers were projected to:
+## 3. Slope
 
-**WGS 84 / UTM Zone 31N (EPSG:32631)**
+Slope was derived from the projected DEM. The resulting slope values ranged from approximately **0 to 16.22°**.
 
-This projected coordinate system was used to ensure that distance and terrain-related calculations were performed in metres.
+The slope was reclassified into five suitability classes:
 
-## 3. Data Sources
+| Slope (°) | Suitability |
+| --------: | ----------: |
+|       0–3 |           5 |
+|       3–6 |           4 |
+|       6–9 |           3 |
+|      9–12 |           2 |
+|  12–16.22 |           1 |
 
-The main datasets used were:
+Lower slopes were given higher suitability because flatter areas can favour infiltration and reduce rapid surface runoff.
 
-- SRTM 1 Arc-Second Global (~30 m) Digital Elevation Model from USGS EarthExplorer
-- ESA WorldCover 2021 v2.0 (10 m) for land use/land cover
-- CHIRPS annual rainfall data for 2001–2025
-- Ibadan Southwest LGA study-area boundary
+## 4. Flow Accumulation and Drainage
 
-CHIRPS rainfall data were investigated as a potential groundwater-related factor but were not included in the final weighted overlay because their spatial resolution was considered too coarse for detailed spatial modelling within the relatively small study area.
+Flow accumulation was generated from the filled DEM using the **GRASS GIS `r.watershed`** tool.
 
-## 4. DEM Preprocessing
+An initial flow-accumulation output contained negative values and was rejected. The corrected positive flow-accumulation output was used for drainage extraction.
 
-The original SRTM DEM was reprojected to WGS 84 / UTM Zone 31N (EPSG:32631) and clipped to the Ibadan Southwest study boundary.
+A threshold of **1000** was used to extract the drainage network.
 
-A filled DEM was subsequently produced using the QGIS Fill Sinks (Wang & Liu) algorithm. The filled DEM was used for hydrological processing and was not used as the final elevation map.
+Distance to the derived drainage network was calculated using **GDAL Proximity** and clipped to the study-area boundary.
 
-## 5. Slope Generation
+The distance raster was reclassified as follows:
 
-Slope was derived from the projected SRTM DEM.
+| Distance to Drainage (m) | Suitability |
+| -----------------------: | ----------: |
+|                 0–324.72 |           5 |
+|            324.72–649.45 |           4 |
+|            649.45–974.17 |           3 |
+|           974.17–1298.89 |           2 |
+|          1298.89–1623.62 |           1 |
 
-The resulting slope raster had values ranging from approximately 0° to 16.22°.
+Areas closer to the drainage network were given higher suitability.
 
-For the groundwater potential assessment, slope was reclassified into five suitability classes:
+## 5. Land Use/Land Cover
 
-| Slope | Suitability |
-|---|---:|
-| 0–3° | 5 |
-| 3–6° | 4 |
-| 6–9° | 3 |
-| 9–12° | 2 |
-| 12–16.22° | 1 |
+ESA WorldCover 2021 v2.0 was used as the LULC dataset.
 
-Lower slopes were assigned higher suitability because flatter terrain can favour infiltration and reduce rapid surface runoff.
+The raster was reprojected using **nearest-neighbour resampling**, clipped to the study area and reclassified to a 1–5 suitability scale.
 
-## 6. Drainage Network and Distance to Drainage
+| WorldCover Class       | Suitability |
+| ---------------------- | ----------: |
+| Tree cover             |           5 |
+| Shrubland              |           4 |
+| Grassland              |           4 |
+| Cropland               |           3 |
+| Bare/sparse vegetation |           2 |
+| Built-up               |           1 |
 
-Flow accumulation was generated from the filled DEM using the GRASS `r.watershed` algorithm.
+The 10 m LULC raster was later resampled to approximately the 30 m analysis grid using nearest-neighbour resampling.
 
-A threshold of 1000 was used to derive the drainage/stream network. Positive flow accumulation was used because the initial flow-accumulation output contained negative values and was therefore rejected.
+## 6. Elevation
 
-A binary stream network was subsequently generated using the condition:
+Elevation values in the study area ranged from approximately **133 to 234 m**.
 
-`Flow accumulation >= 1000`
+The elevation factor was reclassified as follows:
 
-Distance to the derived drainage network was calculated using the GDAL Proximity tool.
+| Elevation (m) | Suitability |
+| ------------: | ----------: |
+|       133–154 |           5 |
+|       154–174 |           4 |
+|       174–194 |           3 |
+|       194–214 |           2 |
+|       214–234 |           1 |
 
-The resulting distance raster was clipped to the study boundary before suitability classification.
+Elevation was treated as a relative terrain factor in the analysis.
 
-Distance to drainage was then reclassified into five suitability classes using equal-interval ranges:
+## 7. Weighted Overlay
 
-| Distance to drainage | Suitability |
-|---|---:|
-| 0–324.72 m | 5 |
-| 324.72–649.45 m | 4 |
-| 649.45–974.17 m | 3 |
-| 974.17–1298.89 m | 2 |
-| 1298.89–1623.62 m | 1 |
+The four factors were standardised to a common **1–5 suitability scale** and combined using an expert-informed weighted overlay.
 
-Areas closer to drainage were assigned higher suitability.
+| Factor               | Weight |
+| -------------------- | -----: |
+| Slope                |    30% |
+| Distance to drainage |    30% |
+| LULC                 |    25% |
+| Elevation            |    15% |
 
-## 7. Land Use/Land Cover
+The Groundwater Potential Index (GWPI) was calculated as:
 
-ESA WorldCover 2021 v2.0 was used to represent land use/land cover.
+**GWPI = (Slope × 0.30) + (Distance to Drainage × 0.30) + (LULC × 0.25) + (Elevation × 0.15)**
 
-The original WorldCover raster was reprojected to EPSG:32631 using nearest-neighbour resampling and clipped to the study boundary.
+The weights were selected for this portfolio assessment and were not statistically calibrated against borehole-yield data.
 
-The land-cover classes present within the study area included:
+## 8. GWPI Classification
 
-- Tree cover
-- Shrubland
-- Grassland
-- Cropland
-- Built-up
-- Bare/sparse vegetation
+The final continuous GWPI values ranged from approximately **1.30 to 5.00**.
 
-The classes were assigned groundwater suitability scores based on their relative influence on infiltration and surface conditions:
+The index was classified into five relative groundwater potential classes:
 
-| LULC class | Suitability |
-|---|---:|
-| Tree cover | 5 |
-| Shrubland | 4 |
-| Grassland | 4 |
-| Cropland | 3 |
-| Built-up | 1 |
-| Bare/sparse vegetation | 2 |
+* Very Low
+* Low
+* Moderate
+* High
+* Very High
 
-The resulting suitability raster was resampled to the approximately 30 m analysis grid using nearest-neighbour resampling.
+The classification is for spatial interpretation and map presentation. It does not represent measured groundwater yield.
 
-## 8. Elevation Suitability
+## 9. Map Production
 
-Elevation was derived from the SRTM DEM and reclassified into five relative suitability classes:
+Six maps were produced:
 
-| Elevation | Suitability |
-|---|---:|
-| 133–154 m | 5 |
-| 154–174 m | 4 |
-| 174–194 m | 3 |
-| 194–214 m | 2 |
-| 214–234 m | 1 |
+1. Study Area
+2. Elevation
+3. Slope
+4. Distance to Drainage
+5. Land Use/Land Cover
+6. Groundwater Potential
 
-Elevation was treated as a relative terrain factor rather than a direct measure of groundwater availability.
+The maps were prepared in QGIS and include the main cartographic elements such as the legend, scale bar, north arrow, CRS and data source.
 
-## 9. Weighted Overlay
+## 10. Software
 
-Four factors were selected for the final groundwater potential assessment:
-
-| Factor | Weight |
-|---|---:|
-| Slope | 30% |
-| Distance to drainage | 30% |
-| Land use/land cover | 25% |
-| Elevation | 15% |
-
-Each factor was standardized to a suitability scale from 1 (Very Low) to 5 (Very High).
-
-The Groundwater Potential Index (GWPI) was calculated using:
-
-`GWPI = (Slope × 0.30) + (Distance to Drainage × 0.30) + (LULC × 0.25) + (Elevation × 0.15)`
-
-The weights represent an expert-informed weighting scheme for this portfolio assessment. They were not statistically calibrated because spatial borehole validation data were not available for the study.
-
-## 10. Groundwater Potential Classification
-
-The final GWPI is a continuous raster with values ranging approximately from 1.30 to 5.00.
-
-For map interpretation, the continuous index was displayed using five classes:
-
-- Very Low
-- Low
-- Moderate
-- High
-- Very High
-
-These classes are cartographic interpretation classes applied to the continuous index and do not represent measured groundwater yield categories.
-
-## 11. Map Production
-
-Six thematic maps were produced:
-
-1. Study Area Map
-2. Elevation Map
-3. Slope Map
-4. Distance to Drainage Map
-5. Land Use/Land Cover Map
-6. Groundwater Potential Map
-
-Each map includes appropriate map elements such as a title, legend, north arrow, scale bar, coordinate reference system and data-source information.
-
-## 12. Software
-
-The analysis was carried out primarily in QGIS 3.44.9, using GDAL and GRASS GIS processing tools available within the QGIS environment.
+* QGIS 3.44.9
+* GRASS GIS
+* GDAL
